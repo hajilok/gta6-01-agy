@@ -1,703 +1,135 @@
-// Cala Solara — Sculpted 6-District Architecture, Landmarks, Marina, Fiesta Plaza & Palm Groves
-
+// Cala Solara — 6-District Architecture, Readable Neon Blade Signs, Arched Palms, Fiesta Plaza & Marina
 import * as THREE from 'three';
 import { WORLD_CONFIG } from '../config.js';
 import { createNeonSignTexture } from '../render/materials.js';
+import { addBox as B, addCyl as C, addSphere as S, glowMat, stdMat } from '../render/mesh-utils.js';
 import { boulevardZAtX, coastZAtX } from './city-world.js';
 
+const M=Math,V3=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
+
 export function buildDistrictLandmarks(scene, cityWorld, textures) {
-  const emissiveMaterials = [];
-  const animatedProps = []; // Lighthouse beam, palm fronds, fiesta lights, fountain
-
-  buildArtDecoStrip(scene, cityWorld, textures, emissiveMaterials);
-  buildSkylineCore(scene, cityWorld, textures, emissiveMaterials);
-  buildOldTownPlaza(scene, cityWorld, textures, emissiveMaterials, animatedProps);
-  buildHarborMarina(scene, cityWorld, textures, emissiveMaterials);
-  buildMonteFaroIsland(scene, cityWorld, textures, emissiveMaterials, animatedProps);
-  buildPalmGrovesAndBeach(scene, cityWorld, animatedProps);
-
-  return { emissiveMaterials, animatedProps };
+  const emissiveMaterials=[],animatedProps=[];
+  buildArtDecoStrip(scene,cityWorld,textures,emissiveMaterials);
+  buildSkylineCore(scene,cityWorld,textures,emissiveMaterials);
+  buildOldTownPlaza(scene,cityWorld,textures,emissiveMaterials);
+  buildHarborMarina(scene,cityWorld,textures,emissiveMaterials);
+  buildMonteFaroIsland(scene,cityWorld,emissiveMaterials,animatedProps);
+  buildPalmGrovesAndBeach(scene,cityWorld,animatedProps);
+  return {emissiveMaterials,animatedProps};
 }
 
-function buildArtDecoStrip(scene, cityWorld, textures, emissiveMaterials) {
-  const hotels = [
-    { x: -175, w: 30, d: 22, h: 28, tint: 0xffd5c8, neon: 'HOTEL CORAL', sub: 'BEACH RESORT', glow: '#ff4f8b' },
-    { x: -115, w: 34, d: 24, h: 36, tint: 0xdff5f0, neon: 'SOLARA CLUB', sub: 'ROOFTOP LOUNGE', glow: '#00e6ff' },
-    { x: -55, w: 28, d: 22, h: 25, tint: 0xffe8c2, neon: 'PALMERA', sub: 'OCEANFRONT', glow: '#ffae38' },
-    { x: 5, w: 34, d: 24, h: 40, tint: 0xe6e0ff, neon: 'AZUL BAY', sub: 'GRAND CASINO', glow: '#c46bff' },
-    { x: 75, w: 30, d: 22, h: 30, tint: 0xffdce4, neon: 'MIRAMAR', sub: 'SUITES & SPA', glow: '#ff5d73' },
-  ];
-
-  const awningColors = [0xff5277, 0x00c9d8, 0xffaa33, 0x3bd48a];
-  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x243040, roughness: 0.45, metalness: 0.6 });
-  const balconyMat = new THREE.MeshStandardMaterial({ color: 0xfff6ec, roughness: 0.65 });
-
-  for (let i = 0; i < hotels.length; i++) {
-    const b = hotels[i];
-    const z = boulevardZAtX(b.x) - 25;
-    const grp = new THREE.Group();
-    grp.position.set(b.x, 0.3, z);
-
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: b.tint,
-      map: textures.decoMap,
-      emissive: 0xffffff,
-      emissiveMap: textures.decoEmissive,
-      emissiveIntensity: 0.85,
-      roughness: 0.62,
-      metalness: 0.08,
-    });
-    emissiveMaterials.push({ mat: wallMat, base: 0.85 });
-
-    // Main hotel tower
-    const main = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), wallMat);
-    main.position.y = b.h * 0.5;
-    main.castShadow = true;
-    main.receiveShadow = true;
-    grp.add(main);
-
-    // Art-Deco stepped penthouse crown
-    const crown = new THREE.Mesh(new THREE.BoxGeometry(b.w * 0.62, 6.5, b.d * 0.62), wallMat);
-    crown.position.y = b.h + 3.25;
-    crown.castShadow = true;
-    grp.add(crown);
-
-    // 3D Recessed cantilevered balconies facing the ocean boulevard
-    const floors = Math.floor(b.h / 6.5);
-    for (let f = 1; f < floors; f++) {
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(b.w * 0.86, 0.55, 2.6), balconyMat);
-      slab.position.set(0, f * 6.2, b.d * 0.5 + 1.1);
-      slab.castShadow = true;
-      grp.add(slab);
-
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(b.w * 0.86, 0.9, 0.16), darkMetal);
-      rail.position.set(0, f * 6.2 + 0.6, b.d * 0.5 + 2.3);
-      grp.add(rail);
-    }
-
-    // Ground-floor striped café awning & warm lobby glow
-    const awningMat = new THREE.MeshStandardMaterial({ color: awningColors[i % awningColors.length], roughness: 0.72 });
-    const awning = new THREE.Mesh(new THREE.BoxGeometry(b.w * 0.92, 0.45, 4.4), awningMat);
-    awning.position.set(0, 4.3, b.d * 0.5 + 2.1);
-    awning.rotation.x = 0.24;
-    awning.castShadow = true;
-    grp.add(awning);
-
-    // Luminous HDR-bloomed rooftop neon sign facing the beach boulevard
-    const signTex = createNeonSignTexture(b.neon, '#101526', b.glow, b.sub);
-    const signMat = new THREE.MeshStandardMaterial({
-      map: signTex,
-      emissiveMap: signTex,
-      emissive: 0xffffff,
-      emissiveIntensity: 2.35,
-      roughness: 0.2,
-    });
-    emissiveMaterials.push({ mat: signMat, base: 2.35, alwaysBright: true });
-    const signBoard = new THREE.Mesh(new THREE.BoxGeometry(b.w * 0.82, 4.8, 0.7), signMat);
-    signBoard.position.set(0, b.h + 2.6, b.d * 0.5 + 0.6);
-    grp.add(signBoard);
-
-    // Neon trim tube along roofline
-    const tubeMat = new THREE.MeshStandardMaterial({
-      color: b.glow,
-      emissive: b.glow,
-      emissiveIntensity: 2.8,
-    });
-    emissiveMaterials.push({ mat: tubeMat, base: 2.8, alwaysBright: true });
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.6, 0.48, b.d + 0.6), tubeMat);
-    trim.position.y = b.h - 0.4;
-    grp.add(trim);
-
-    scene.add(grp);
-    cityWorld.addCollider(b.x, z, b.w + 1.5, b.d + 3.5, b.h);
-    cityWorld.buildingFootprints.push({ x: b.x, z, w: b.w, d: b.d, color: '#ff96b5' });
-  }
-}
-
-function buildSkylineCore(scene, cityWorld, textures, emissiveMaterials) {
-  const towers = [
-    { x: -95, z: -150, w: 32, d: 30, h: 74, tint: 0x9cd2eb, accent: '#00e6ff', helipad: true },
-    { x: -95, z: -66, w: 30, d: 28, h: 58, tint: 0xd9c7a8, accent: '#ffae42', helipad: false },
-    { x: -95, z: 12, w: 28, d: 24, h: 42, tint: 0xaad4e6, accent: '#ff5d8f', helipad: false },
-    { x: 0, z: -152, w: 36, d: 34, h: 98, tint: 0xbce6ff, accent: '#ffd066', helipad: true }, // Flagship Solara Spire
-    { x: 90, z: -150, w: 30, d: 28, h: 82, tint: 0xa6d0e8, accent: '#5bf59c', helipad: false },
-    { x: 90, z: -66, w: 32, d: 28, h: 66, tint: 0xe3d1b8, accent: '#ff7052', helipad: true },
-    { x: 90, z: 14, w: 28, d: 24, h: 46, tint: 0x9ec8e2, accent: '#45d9ff', helipad: false },
-    { x: 0, z: 14, w: 32, d: 24, h: 52, tint: 0xc2d8e8, accent: '#ff6ba3', helipad: false },
-  ];
-
-  const steelMat = new THREE.MeshStandardMaterial({ color: 0x2f3b4d, roughness: 0.35, metalness: 0.72 });
-
-  for (const t of towers) {
-    const grp = new THREE.Group();
-    grp.position.set(t.x, 0.3, t.z);
-
-    const glassMat = new THREE.MeshStandardMaterial({
-      color: t.tint,
-      map: textures.skyMap,
-      emissive: 0xffffff,
-      emissiveMap: textures.skyEmissive,
-      emissiveIntensity: 0.95,
-      roughness: 0.24,
-      metalness: 0.68,
-    });
-    emissiveMaterials.push({ mat: glassMat, base: 0.95 });
-
-    // Podium base
-    const podium = new THREE.Mesh(new THREE.BoxGeometry(t.w + 3.5, 9, t.d + 3.5), steelMat);
-    podium.position.y = 4.5;
-    podium.castShadow = true;
-    podium.receiveShadow = true;
-    grp.add(podium);
-
-    // Lower tower shaft
-    const shaftH = t.h * 0.72;
-    const shaft = new THREE.Mesh(new THREE.BoxGeometry(t.w, shaftH, t.d), glassMat);
-    shaft.position.y = 9 + shaftH * 0.5;
-    shaft.castShadow = true;
-    shaft.receiveShadow = true;
-    grp.add(shaft);
-
-    // Architectural setback upper tier
-    const upperH = t.h * 0.28;
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.74, upperH, t.d * 0.74), glassMat);
-    upper.position.y = 9 + shaftH + upperH * 0.5;
-    upper.castShadow = true;
-    grp.add(upper);
-
-    // Glowing architectural crown band
-    const glowMat = new THREE.MeshStandardMaterial({
-      color: t.accent,
-      emissive: t.accent,
-      emissiveIntensity: 2.5,
-    });
-    emissiveMaterials.push({ mat: glowMat, base: 2.5, alwaysBright: true });
-    const band = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.76, 1.1, t.d * 0.76), glowMat);
-    band.position.y = 9 + t.h - 0.6;
-    grp.add(band);
-
-    // Rooftop details: spire antenna or helipad
-    if (t.helipad) {
-      const pad = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.6, 0.7, 20), steelMat);
-      pad.position.y = 9 + t.h + 0.35;
-      grp.add(pad);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(4.8, 5.6, 20), glowMat);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 9 + t.h + 0.76;
-      grp.add(ring);
-    } else {
-      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.95, 16, 8), steelMat);
-      spire.position.y = 9 + t.h + 8;
-      grp.add(spire);
-    }
-
-    scene.add(grp);
-    cityWorld.addCollider(t.x, t.z, t.w + 3.5, t.d + 3.5, t.h + 9);
-    cityWorld.buildingFootprints.push({ x: t.x, z: t.z, w: t.w + 3, d: t.d + 3, color: '#6fd3ff' });
-  }
-
-  // Central Solara Obelisk Fountain Park at (0, 0, -68)
-  const parkGrp = new THREE.Group();
-  parkGrp.position.set(0, 0.35, -68);
-  const stoneMat = new THREE.MeshStandardMaterial({ color: 0xe6dac5, roughness: 0.72 });
-  const basin = new THREE.Mesh(new THREE.CylinderGeometry(11, 12, 1.2, 24), stoneMat);
-  basin.position.y = 0.6;
-  basin.receiveShadow = true;
-  parkGrp.add(basin);
-  const pool = new THREE.Mesh(
-    new THREE.CylinderGeometry(9.8, 9.8, 0.9, 24),
-    new THREE.MeshStandardMaterial({ color: 0x1bd1d8, roughness: 0.12, metalness: 0.25 })
-  );
-  pool.position.y = 0.85;
-  parkGrp.add(pool);
-  const obelisk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 2.2, 16, 4), stoneMat);
-  obelisk.position.y = 8.5;
-  obelisk.castShadow = true;
-  parkGrp.add(obelisk);
-  scene.add(parkGrp);
-  cityWorld.addCollider(0, -68, 20, 20, 16, 'fountain');
-}
-
-function buildOldTownPlaza(scene, cityWorld, textures, emissiveMaterials, animatedProps) {
-  const pc = WORLD_CONFIG.plazaCenter; // (-220, -20)
-  const buildings = [
-    { x: pc.x - 42, z: pc.z - 28, w: 22, d: 28, h: 16, tint: 0xe89b6b, roof: 0xa6462e },
-    { x: pc.x - 42, z: pc.z + 24, w: 22, d: 30, h: 14, tint: 0xf0be7a, roof: 0xb24e32 },
-    { x: pc.x + 42, z: pc.z - 26, w: 22, d: 30, h: 17, tint: 0xdf8262, roof: 0x993e28 },
-    { x: pc.x + 42, z: pc.z + 26, w: 22, d: 26, h: 15, tint: 0xf2c88c, roof: 0xad4a30 },
-    { x: pc.x - 16, z: pc.z - 46, w: 32, d: 18, h: 19, tint: 0xe6a172, roof: 0xa8432b },
-    { x: pc.x + 20, z: pc.z - 46, w: 28, d: 18, h: 16, tint: 0xf4ce94, roof: 0xb55235 },
-    { x: pc.x - 18, z: pc.z + 46, w: 28, d: 18, h: 14, tint: 0xe38f68, roof: 0x9e3f28 },
-    { x: -210, z: -146, w: 42, d: 26, h: 18, tint: 0xe9a977, roof: 0xa8462c },
-  ];
-
-  const pillarMat = new THREE.MeshStandardMaterial({ color: 0xf3e2c8, roughness: 0.78 });
-
-  for (const b of buildings) {
-    const grp = new THREE.Group();
-    grp.position.set(b.x, 0.3, b.z);
-    const mat = new THREE.MeshStandardMaterial({
-      color: b.tint,
-      map: textures.oldTownMap,
-      emissive: 0xffffff,
-      emissiveMap: textures.oldTownEmissive,
-      emissiveIntensity: 0.75,
-      roughness: 0.82,
-    });
-    emissiveMaterials.push({ mat, base: 0.75 });
-
-    const body = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), mat);
-    body.position.y = b.h * 0.5;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    grp.add(body);
-
-    // Terracotta hip roof overhang
-    const roof = new THREE.Mesh(
-      new THREE.ConeGeometry(Math.max(b.w, b.d) * 0.72, 4.6, 4),
-      new THREE.MeshStandardMaterial({ color: b.roof, roughness: 0.85 })
-    );
-    roof.rotation.y = Math.PI * 0.25;
-    roof.position.y = b.h + 2.3;
-    roof.castShadow = true;
-    grp.add(roof);
-
-    // Arched colonnade pillars along street face
-    for (let px = -b.w * 0.38; px <= b.w * 0.38; px += 6.2) {
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 5.2, 8), pillarMat);
-      col.position.set(px, 2.6, b.d * 0.5 + 1.1);
-      col.castShadow = true;
-      grp.add(col);
-    }
-
-    scene.add(grp);
-    cityWorld.addCollider(b.x, b.z, b.w + 1.4, b.d + 2.2, b.h);
-    cityWorld.buildingFootprints.push({ x: b.x, z: b.z, w: b.w, d: b.d, color: '#f0a763' });
-  }
-
-  // Ornate Fiesta Plaza Mosaic Fountain at (-220, 0, -20)
-  const fGrp = new THREE.Group();
-  fGrp.position.set(pc.x, 0.36, pc.z);
-  const mosaicMat = new THREE.MeshStandardMaterial({ color: 0x2a88a8, roughness: 0.35, metalness: 0.15 });
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(6.6, 7.2, 1.1, 16), pillarMat);
-  rim.position.y = 0.55;
-  rim.castShadow = true;
-  rim.receiveShadow = true;
-  fGrp.add(rim);
-  const basin = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 5.6, 0.85, 16), mosaicMat);
-  basin.position.y = 0.72;
-  fGrp.add(basin);
-  const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 1.4, 2.6, 12), pillarMat);
-  tier1.position.y = 2.0;
-  tier1.castShadow = true;
-  fGrp.add(tier1);
-  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 1.6, 0.8, 14), mosaicMat);
-  bowl.position.y = 3.4;
-  fGrp.add(bowl);
-  const spout = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 1.15, 2.5, 10),
-    new THREE.MeshStandardMaterial({ color: 0x9ef6ff, transparent: true, opacity: 0.76, roughness: 0.1 })
-  );
-  spout.position.y = 4.6;
-  fGrp.add(spout);
-  scene.add(fGrp);
-  cityWorld.addCollider(pc.x, pc.z, 13, 13, 5, 'plaza-fountain');
-
-  // Tactile Market Stalls & Cover Crates around Plaza de la Fiesta
-  const stallSpecs = [
-    { x: pc.x - 18, z: pc.z + 14, yaw: 0.4, color: 0xe64848 },
-    { x: pc.x + 17, z: pc.z + 15, yaw: -0.35, color: 0x1bb5a8 },
-    { x: pc.x - 19, z: pc.z - 15, yaw: -0.45, color: 0xf2a72b },
-    { x: pc.x + 19, z: pc.z - 14, yaw: 0.3, color: 0xd9488b },
-  ];
-  const woodMat = new THREE.MeshStandardMaterial({ color: 0x7c4f2b, roughness: 0.85 });
-  for (const st of stallSpecs) {
-    const sg = new THREE.Group();
-    sg.position.set(st.x, 0.36, st.z);
-    sg.rotation.y = st.yaw;
-    const counter = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.25, 2.1), woodMat);
-    counter.position.y = 0.62;
-    counter.castShadow = true;
-    counter.receiveShadow = true;
-    sg.add(counter);
-    for (const sx of [-2.3, 2.3]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.3, 6), woodMat);
-      post.position.set(sx, 1.65, -0.8);
-      sg.add(post);
-    }
-    const canopy = new THREE.Mesh(
-      new THREE.BoxGeometry(5.6, 0.22, 3.0),
-      new THREE.MeshStandardMaterial({ color: st.color, roughness: 0.75 })
-    );
-    canopy.position.set(0, 3.25, 0.1);
-    canopy.rotation.x = 0.16;
-    canopy.castShadow = true;
-    sg.add(canopy);
-    scene.add(sg);
-    cityWorld.addCollider(st.x, st.z, 4.8, 2.4, 2.8, 'stall');
-  }
-
-  // Warm glowing overhead Fiesta Lantern Strings crisscrossing the plaza!
-  const lanternMat = new THREE.MeshStandardMaterial({
-    color: 0xffe4a0,
-    emissive: 0xffa834,
-    emissiveIntensity: 2.6,
+function buildArtDecoStrip(sc, cw, tx, em) {
+  const aw=[0xff5277,0x00c9d8,0xffaa33,0x3bd48a],dm=stdMat(0x243040,0.42,0.65),cr=stdMat(0xfff7ee,0.6);
+  [[-175,30,22,28,0xfbe5d8,'HOTEL CORAL','BEACH RESORT','#ff4f8b'],[-115,34,24,36,0xe6f6f2,'SOLARA CLUB','ROOFTOP LOUNGE','#00e6ff'],[-55,28,22,27,0xfff0d4,'PALMERA','OCEANFRONT','#ffae38'],[5,34,24,42,0xeee8ff,'AZUL BAY','GRAND CASINO','#c46bff'],[75,30,22,32,0xffe4ec,'MIRAMAR','SUITES & SPA','#ff5d73']].forEach(([x,w,d,h,tint,neon,sub,glow],i)=>{
+    const z=boulevardZAtX(x)-25,g=new THREE.Group();g.position.set(x,0.3,z);
+    const wm=stdMat(tint,0.62,0.08,{map:tx.decoMap,emissive:0xffffff,emissiveMap:tx.decoEmissive,emissiveIntensity:0.9});em.push({mat:wm,base:0.9});
+    B(g,w,h,d,wm,0,h*0.5,0);B(g,w*0.64,6.5,d*0.64,wm,0,h+3.25,0);B(g,w+1.2,1,d+1.2,cr,0,h+0.1,0);
+    for(const px of[-w*0.45,0,w*0.45])B(g,1.2,h,0.9,cr,px,h*0.5,d*0.5+0.35);
+    for(let f=1;f<M.floor(h/6.5);f++){B(g,w*0.84,0.5,2.5,cr,0,f*6.2,d*0.5+1.1);B(g,w*0.84,0.85,0.15,dm,0,f*6.2+0.58,d*0.5+2.25,false);}
+    B(g,w*0.92,0.42,4.4,stdMat(aw[i%4],0.72),0,4.3,d*0.5+2.1).rotation.x=0.24;
+    const st=createNeonSignTexture(neon,'#0f1426',glow,sub),sm=stdMat(0xffffff,0.2,0.1,{map:st,emissiveMap:st,emissive:0xffffff,emissiveIntensity:2.3});em.push({mat:sm,base:2.3,alwaysBright:true});
+    B(g,w*0.78,4.6,0.7,sm,0,h+2.6,d*0.5+0.6,false);B(g,0.6,3.8,12,sm,-w*0.5-0.5,11.5,d*0.5+4.8,false).rotation.y=0.28;B(g,0.35,0.35,4.5,dm,-w*0.5,11.5,d*0.5+1.5,false);
+    const tm=glowMat(glow,2.6);em.push({mat:tm,base:2.6,alwaysBright:true});B(g,w+0.7,0.45,d+0.7,tm,0,h-0.4,0,false);
+    sc.add(g);cw.addCollider(x,z,w+1.5,d+3.5,h);cw.buildingFootprints.push({x,z,w,d,color:'#ff96b5'});
   });
-  emissiveMaterials.push({ mat: lanternMat, base: 2.6, alwaysBright: true });
-  const stringPairs = [
-    [new THREE.Vector3(pc.x - 32, 9.5, pc.z - 22), new THREE.Vector3(pc.x + 32, 9.5, pc.z + 22)],
-    [new THREE.Vector3(pc.x - 32, 9.5, pc.z + 22), new THREE.Vector3(pc.x + 32, 9.5, pc.z - 22)],
-    [new THREE.Vector3(pc.x - 32, 9.5, pc.z), new THREE.Vector3(pc.x + 32, 9.5, pc.z)],
-  ];
-  for (const [pA, pB] of stringPairs) {
-    const numBulbs = 9;
-    for (let k = 1; k < numBulbs; k++) {
-      const u = k / numBulbs;
-      const pos = new THREE.Vector3().lerpVectors(pA, pB, u);
-      pos.y -= Math.sin(u * Math.PI) * 1.65;
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), lanternMat);
-      bulb.position.copy(pos);
-      scene.add(bulb);
-    }
+  const gs=glowMat(0x2bff88,3.2),rs=glowMat(0xff3348,2.6);
+  for(const gx of[-145,-45,45]){
+    const gz=boulevardZAtX(gx);C(sc,0.22,0.28,9.2,8,dm,gx,4.6,gz-11.2,false);C(sc,0.22,0.28,9.2,8,dm,gx,4.6,gz+11.2,false);B(sc,0.45,0.45,22.8,dm,gx,8.8,gz,false);
+    for(const sz of[-4.5,4.5]){B(sc,0.7,1.9,0.75,dm,gx,8.2,gz+sz,false);S(sc,0.22,6,6,sz<0?gs:rs,gx-0.36,7.8,gz+sz);S(sc,0.22,6,6,sz<0?gs:rs,gx+0.36,7.8,gz+sz);}
   }
 }
 
-function buildHarborMarina(scene, cityWorld, textures, emissiveMaterials) {
-  // 1) Twin Industrial Shipping Gantry Cranes in Puerto Caldera (x=208, z=-125 & z=-72)
-  const craneRed = new THREE.MeshStandardMaterial({ color: 0xd93d32, roughness: 0.48, metalness: 0.45 });
-  const craneWhite = new THREE.MeshStandardMaterial({ color: 0xf2f4f8, roughness: 0.5 });
-  for (const cz of [-128, -74]) {
-    const cg = new THREE.Group();
-    cg.position.set(206, 0.3, cz);
-    for (const dx of [-6, 6]) {
-      for (const dz of [-4.5, 4.5]) {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(1.4, 34, 1.4), craneRed);
-        leg.position.set(dx, 17, dz);
-        leg.castShadow = true;
-        cg.add(leg);
-      }
-    }
-    const boom = new THREE.Mesh(new THREE.BoxGeometry(46, 2.4, 3.2), craneRed);
-    boom.position.set(10, 29, 0);
-    boom.castShadow = true;
-    cg.add(boom);
-    const cab = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.2, 4.2), craneWhite);
-    cab.position.set(12, 26.2, 0);
-    cg.add(cab);
-    scene.add(cg);
-    cityWorld.addCollider(206, cz, 14, 11, 34, 'crane');
-  }
-
-  // 2) Stacked Multi-Color Corrugated Shipping Containers
-  const contColors = [0xc93b32, 0x266bb8, 0xe89b2d, 0x268a5c, 0x4b5c72];
-  const contCoords = [
-    [164, -142, 0, 2], [176, -142, 0, 1], [164, -124, 0, 3],
-    [164, -92, 0, 2], [178, -92, 0, 1], [164, -56, 0, 2],
-  ];
-  for (let i = 0; i < contCoords.length; i++) {
-    const [cx, cz, yaw, stack] = contCoords[i];
-    for (let s = 0; s < stack; s++) {
-      const cm = new THREE.MeshStandardMaterial({
-        color: contColors[(i + s) % contColors.length],
-        map: textures.containerMap,
-        roughness: 0.65,
-        metalness: 0.28,
-      });
-      const box = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.6, 11.2), cm);
-      box.position.set(cx, 0.3 + 1.8 + s * 3.65, cz);
-      box.rotation.y = yaw;
-      box.castShadow = true;
-      box.receiveShadow = true;
-      scene.add(box);
-    }
-    cityWorld.addCollider(cx, cz, 4.8, 11.6, stack * 3.8, 'container');
-    cityWorld.buildingFootprints.push({ x: cx, z: cz, w: 5, d: 12, color: '#5bf59c' });
-  }
-
-  // 3) Camila's Modern Coastal Safehouse & Solara Customs Paint Garage at (154, 0, 16)
-  const sg = new THREE.Group();
-  sg.position.set(154, 0.3, 14);
-  const stucco = new THREE.MeshStandardMaterial({ color: 0xf7f2e8, roughness: 0.58 });
-  const warmWood = new THREE.MeshStandardMaterial({ color: 0x9c663b, roughness: 0.72 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x45c8e8, roughness: 0.12, metalness: 0.8 });
-
-  const mainVilla = new THREE.Mesh(new THREE.BoxGeometry(22, 9.5, 16), stucco);
-  mainVilla.position.set(0, 4.75, 0);
-  mainVilla.castShadow = true;
-  mainVilla.receiveShadow = true;
-  sg.add(mainVilla);
-
-  const upperDeck = new THREE.Mesh(new THREE.BoxGeometry(24.5, 1.1, 18.5), warmWood);
-  upperDeck.position.set(0, 9.8, 0);
-  upperDeck.castShadow = true;
-  sg.add(upperDeck);
-
-  const loft = new THREE.Mesh(new THREE.BoxGeometry(14, 5.2, 11), glass);
-  loft.position.set(-2, 12.8, -1);
-  loft.castShadow = true;
-  sg.add(loft);
-
-  const garageSignTex = createNeonSignTexture('SOLARA CUSTOMS', '#111829', '#00e6ff', 'SAFEHOUSE & TUNING');
-  const garageSignMat = new THREE.MeshStandardMaterial({
-    map: garageSignTex,
-    emissiveMap: garageSignTex,
-    emissive: 0xffffff,
-    emissiveIntensity: 2.1,
+function buildSkylineCore(sc, cw, tx, em) {
+  const sm=stdMat(0x2f3b4d,0.34,0.75);
+  [[-95,-150,32,30,78,0x9cd2eb,'#00e6ff',1],[-95,-66,30,28,62,0xd9c7a8,'#ffae42',0],[-95,12,28,24,46,0xaad4e6,'#ff5d8f',0],[0,-152,36,34,106,0xbce6ff,'#ffd066',1],[90,-150,30,28,86,0xa6d0e8,'#5bf59c',0],[90,-66,32,28,72,0xe3d1b8,'#ff7052',1],[90,14,30,26,58,0x9ec8e2,'#45d9ff',0],[0,14,32,26,64,0xc2d8e8,'#ff6ba3',0]].forEach(([x,z,w,d,h,tint,acc,pad])=>{
+    const g=new THREE.Group();g.position.set(x,0.3,z);
+    const gm=stdMat(tint,0.2,0.72,{map:tx.skyMap,emissive:0xffffff,emissiveMap:tx.skyEmissive,emissiveIntensity:1.05});em.push({mat:gm,base:1.05});
+    B(g,w+3.5,9,d+3.5,sm,0,4.5,0);B(g,w,h*0.72,d,gm,0,9+h*0.36,0);B(g,w*0.74,h*0.28,d*0.74,gm,0,9+h*0.86,0);
+    const gl=glowMat(acc,2.7);em.push({mat:gl,base:2.7,alwaysBright:true});B(g,w*0.77,1.2,d*0.77,gl,0,9+h-0.6,0,false);
+    if(pad){C(g,7.2,7.6,0.7,18,sm,0,9+h+0.35,0,false);const rg=new THREE.Mesh(new THREE.RingGeometry(4.8,5.6,18),gl);rg.rotation.x=-M.PI*0.5;rg.position.y=9+h+0.76;g.add(rg);}
+    else C(g,0.22,0.95,18,8,sm,0,9+h+9,0,false);
+    sc.add(g);cw.addCollider(x,z,w+3.5,d+3.5,h+9);cw.buildingFootprints.push({x,z,w:w+3,d:d+3,color:'#6fd3ff'});
   });
-  emissiveMaterials.push({ mat: garageSignMat, base: 2.1, alwaysBright: true });
-  const gSign = new THREE.Mesh(new THREE.BoxGeometry(12, 2.8, 0.5), garageSignMat);
-  gSign.position.set(0, 7.6, 8.3);
-  sg.add(gSign);
-
-  scene.add(sg);
-  cityWorld.addCollider(154, 14, 23, 17, 15, 'safehouse');
-  cityWorld.buildingFootprints.push({ x: 154, z: 14, w: 22, d: 16, color: '#ffcf6e' });
-
-  // 4) Wooden Marina Yacht Piers & Moored Luxury White Yachts + Sailboats
-  const pierMat = new THREE.MeshStandardMaterial({ color: 0x8f6b49, roughness: 0.82 });
-  const hullWhite = new THREE.MeshStandardMaterial({ color: 0xf7f9fc, roughness: 0.25, metalness: 0.2 });
-  const navyStripe = new THREE.MeshStandardMaterial({ color: 0x193658, roughness: 0.35 });
-  const sailMat = new THREE.MeshStandardMaterial({ color: 0xfff8ed, roughness: 0.65, side: THREE.DoubleSide });
-
-  for (const pz of [-10, 22, 54]) {
-    const pier = new THREE.Mesh(new THREE.BoxGeometry(44, 0.7, 5.2), pierMat);
-    pier.position.set(228, 0.85, pz);
-    pier.castShadow = true;
-    pier.receiveShadow = true;
-    scene.add(pier);
-
-    // Moored yacht beside each pier
-    const yg = new THREE.Group();
-    yg.position.set(240, 0.45, pz + 7.4);
-    yg.rotation.y = Math.PI * 0.5;
-    const hull = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.6, 12.5), hullWhite);
-    hull.castShadow = true;
-    yg.add(hull);
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.35, 11.8), navyStripe);
-    stripe.position.y = 0.25;
-    yg.add(stripe);
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.5, 6.2), glass);
-    cabin.position.set(0, 1.45, -1.0);
-    yg.add(cabin);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.35, 6.8), hullWhite);
-    roof.position.set(0, 2.3, -1.1);
-    yg.add(roof);
-    scene.add(yg);
-  }
-
-  // Graceful offshore sailboats in the bay for skyline/ocean depth
-  const sailboats = [
-    { x: -140, z: 220, yaw: 0.4 },
-    { x: -15, z: 235, yaw: -0.6 },
-    { x: 110, z: 205, yaw: 0.8 },
-    { x: 285, z: 58, yaw: -0.3 },
-    { x: 295, z: -38, yaw: 0.5 },
-  ];
-  for (const sb of sailboats) {
-    const sg2 = new THREE.Group();
-    sg2.position.set(sb.x, 0.35, sb.z);
-    sg2.rotation.y = sb.yaw;
-    const hull = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 7.8), hullWhite);
-    sg2.add(hull);
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 11.5, 6), navyStripe);
-    mast.position.y = 5.8;
-    sg2.add(mast);
-    const sailGeo = new THREE.BufferGeometry();
-    sailGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 1.6, 0, 0, 10.8, 0, 0, 2.0, -4.4], 3));
-    sailGeo.computeVertexNormals();
-    const sail = new THREE.Mesh(sailGeo, sailMat);
-    sg2.add(sail);
-    scene.add(sg2);
-  }
+  const pk=new THREE.Group(),st=stdMat(0xe6dac5,0.72);pk.position.set(0,0.35,-68);
+  C(pk,11,12,1.2,22,st,0,0.6,0,false);C(pk,9.8,9.8,0.9,22,stdMat(0x1bd1d8,0.12,0.25),0,0.85,0,false);C(pk,0.4,2.2,16,4,st,0,8.5,0);
+  sc.add(pk);cw.addCollider(0,-68,20,20,16,'fountain');
 }
 
-function buildMonteFaroIsland(scene, cityWorld, textures, emissiveMaterials, animatedProps) {
-  const lh = WORLD_CONFIG.lighthousePos;
-  const baseY = cityWorld.getTerrainHeight(lh.x, lh.z);
-
-  const lg = new THREE.Group();
-  lg.position.set(lh.x, baseY - 0.5, lh.z);
-
-  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf9f7f2, roughness: 0.55 });
-  const redMat = new THREE.MeshStandardMaterial({ color: 0xd9383a, roughness: 0.55 });
-  const lanternMat = new THREE.MeshStandardMaterial({
-    color: 0xfff4c4,
-    emissive: 0xffd166,
-    emissiveIntensity: 3.4,
+function buildOldTownPlaza(sc, cw, tx, em) {
+  const pc=WORLD_CONFIG.plazaCenter,pm=stdMat(0xf4e4cb,0.75),im=stdMat(0x20252e,0.45,0.7);
+  [[-42,-28,22,28,16,0xe89b6b,0xa6462e],[-42,24,22,30,14,0xf0be7a,0xb24e32],[42,-26,22,30,17,0xdf8262,0x993e28],[42,26,22,26,15,0xf2c88c,0xad4a30],[-16,-46,32,18,19,0xe6a172,0xa8432b],[20,-46,28,18,16,0xf4ce94,0xb55235],[-18,46,28,18,14,0xe38f68,0x9e3f28],[10,-126,42,26,18,0xe9a977,0xa8462c]].forEach(([ox,oz,w,d,h,t,rf])=>{
+    const x=pc.x+ox,z=pc.z+oz,g=new THREE.Group();g.position.set(x,0.3,z);
+    const m=stdMat(t,0.82,0.04,{map:tx.oldTownMap,emissive:0xffffff,emissiveMap:tx.oldTownEmissive,emissiveIntensity:0.72});em.push({mat:m,base:0.72});
+    B(g,w,h,d,m,0,h*0.5,0);B(g,w+1.8,1.2,d+1.8,stdMat(rf,0.82),0,h+0.5,0);B(g,w*0.82,1.8,d*0.82,stdMat(rf,0.85),0,h+1.8,0);
+    for(let px=-w*0.38;px<=w*0.38;px+=6.2)C(g,0.4,0.46,5.2,8,pm,px,2.6,d*0.5+1.1);
+    sc.add(g);cw.addCollider(x,z,w+1.4,d+2.2,h);cw.buildingFootprints.push({x,z,w,d,color:'#f0a763'});
   });
-  emissiveMaterials.push({ mat: lanternMat, base: 3.4, alwaysBright: true });
-
-  // Striped tapered lighthouse tower
-  const segH = 5.4;
-  for (let i = 0; i < 6; i++) {
-    const rBot = 4.2 - i * 0.34;
-    const rTop = 4.2 - (i + 1) * 0.34;
-    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, segH, 16), i % 2 === 0 ? whiteMat : redMat);
-    cyl.position.y = i * segH + segH * 0.5;
-    cyl.castShadow = true;
-    lg.add(cyl);
-  }
-  const lanternRoom = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 3.4, 14), lanternMat);
-  lanternRoom.position.y = 6 * segH + 1.7;
-  lg.add(lanternRoom);
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(2.6, 3.2, 14), redMat);
-  cap.position.y = 6 * segH + 4.9;
-  lg.add(cap);
-
-  // Soft Fresnel-faded rotating atmospheric lighthouse beam (never a hard cone!)
-  const beamGeo = new THREE.CylinderGeometry(1.4, 13.5, 95, 20, 1, true);
-  beamGeo.translate(0, -47.5, 0);
-  beamGeo.rotateX(Math.PI * 0.5);
-  const beamMat = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-    uniforms: { uColor: { value: new THREE.Color(0xffe094) } },
-    vertexShader: `
-      varying vec2 vUv;
-      varying vec3 vN;
-      varying vec3 vV;
-      void main() {
-        vUv = uv;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vN = normalize(normalMatrix * normal);
-        vV = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uColor;
-      varying vec2 vUv;
-      varying vec3 vN;
-      varying vec3 vV;
-      void main() {
-        float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.9);
-        float lenFade = smoothstep(0.0, 0.15, vUv.y) * smoothstep(1.0, 0.15, vUv.y);
-        gl_FragColor = vec4(uColor, edge * lenFade * 0.22);
-      }
-    `,
+  const fg=new THREE.Group(),ms=stdMat(0x1f7ca3,0.3,0.18),tg=stdMat(0xe8b24c,0.4),wm=stdMat(0x88f4ff,0.08,0.1,{transparent:true,opacity:0.74});fg.position.set(pc.x,0.36,pc.z);
+  C(fg,6.6,7.1,1.05,16,pm,0,0.52,0);C(fg,6.2,6.2,0.2,16,tg,0,1.08,0,false);C(fg,5.7,5.7,0.82,16,ms,0,0.68,0,false);
+  C(fg,1.6,2.3,1.9,14,pm,0,1.7,0);C(fg,3.4,1.4,0.7,16,ms,0,2.9,0);C(fg,0.9,1.2,1.5,12,pm,0,3.8,0);C(fg,1.8,0.7,0.5,14,tg,0,4.7,0);S(fg,0.55,10,8,wm,0,5.3,0);
+  for(let k=0;k<6;k++){const a=(k/6)*6.283,ca=M.cos(a),sa=M.sin(a);fg.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V3(ca*0.4,5.1,sa*0.4),V3(ca*2.2,4.4,sa*2.2),V3(ca*4.2,1.1,sa*4.2)]),12,0.12,6,false),wm));}
+  sc.add(fg);cw.addCollider(pc.x,pc.z,13,13,5,'plaza-fountain');
+  const wd=stdMat(0x7c4f2b,0.85);
+  [[-18,14,0.4,0xe64848],[17,15,-0.35,0x1bb5a8],[-19,-15,-0.45,0xf2a72b],[19,-14,0.3,0xd9488b]].forEach(([ox,oz,yaw,col])=>{
+    const sg=new THREE.Group();sg.position.set(pc.x+ox,0.36,pc.z+oz);sg.rotation.y=yaw;
+    B(sg,5.2,1.25,2.1,wd,0,0.62,0);C(sg,0.1,0.1,3.3,6,wd,-2.3,1.65,-0.8,false);C(sg,0.1,0.1,3.3,6,wd,2.3,1.65,-0.8,false);
+    B(sg,5.6,0.22,3,stdMat(col,0.74),0,3.25,0.1).rotation.x=0.16;sc.add(sg);cw.addCollider(pc.x+ox,pc.z+oz,4.8,2.4,2.8,'stall');
   });
-  const beamPivot = new THREE.Group();
-  beamPivot.position.y = 6 * segH + 1.7;
-  beamPivot.rotation.y = 1.1;
-  beamPivot.add(new THREE.Mesh(beamGeo, beamMat));
-  lg.add(beamPivot);
-  animatedProps.push({ type: 'rotateY', obj: beamPivot, speed: 0.45 });
-
-  scene.add(lg);
-  cityWorld.addCollider(lh.x, lh.z, 9, 9, 36, 'lighthouse');
-
-  // Cliffside Luxury Villa overlooking the bay
-  const vx = 382;
-  const vz = 166;
-  const vy = cityWorld.getTerrainHeight(vx, vz);
-  const villa = new THREE.Mesh(new THREE.BoxGeometry(20, 7.5, 14), whiteMat);
-  villa.position.set(vx, vy + 3.2, vz);
-  villa.castShadow = true;
-  villa.receiveShadow = true;
-  scene.add(villa);
-  const infPool = new THREE.Mesh(
-    new THREE.BoxGeometry(12, 0.5, 6),
-    new THREE.MeshStandardMaterial({ color: 0x1ee6df, emissive: 0x0ea4b0, emissiveIntensity: 0.6, roughness: 0.1 })
-  );
-  infPool.position.set(vx - 11, vy + 0.6, vz - 3);
-  scene.add(infPool);
-  cityWorld.addCollider(vx, vz, 21, 15, 10, 'villa');
+  const lm=glowMat(0xffae3d,2.5),fc=[0xff4b78,0x00d9e8,0xffc83b,0x4be88c,0xc46bff];em.push({mat:lm,base:2.5,alwaysBright:true});
+  [[[-32,-22],[32,22]],[[-32,22],[32,-22]],[[-32,0],[32,0]]].forEach(([[ax,az],[bx,bz]],si)=>{
+    const pA=V3(pc.x+ax,9.6,pc.z+az),pB=V3(pc.x+bx,9.6,pc.z+bz),pts=[];
+    for(let k=0;k<=12;k++){const u=k/12,p=V3().lerpVectors(pA,pB,u);p.y-=M.sin(u*M.PI)*1.7;pts.push(p);if(k>0&&k<12){S(sc,0.28,8,8,lm,p.x,p.y-0.22,p.z);const fl=new THREE.Mesh(new THREE.ConeGeometry(0.45,0.72,3),stdMat(fc[(k+si)%5],0.7));fl.position.set(p.x,p.y-0.55,p.z);fl.rotation.z=M.PI;sc.add(fl);}}
+    sc.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),20,0.05,5,false),im));
+  });
 }
 
-function buildPalmGrovesAndBeach(scene, cityWorld, animatedProps) {
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7b5a3c, roughness: 0.9 });
-  const frondMat = new THREE.MeshStandardMaterial({ color: 0x2c8c4a, roughness: 0.68, side: THREE.DoubleSide });
-  const lampPoleMat = new THREE.MeshStandardMaterial({ color: 0x273242, roughness: 0.45, metalness: 0.65 });
-  const lampGlowMat = new THREE.MeshStandardMaterial({ color: 0xfff2cc, emissive: 0xffb85c, emissiveIntensity: 2.2 });
+function buildHarborMarina(sc, cw, tx, em) {
+  const rd=stdMat(0xd93d32,0.48,0.45),wh=stdMat(0xf2f4f8,0.48);
+  for(const cz of[-128,-74]){const cg=new THREE.Group();cg.position.set(206,0.3,cz);for(const dx of[-6,6])for(const dz of[-4.5,4.5])B(cg,1.4,34,1.4,rd,dx,17,dz);B(cg,46,2.4,3.2,rd,10,29,0);B(cg,4.5,3.2,4.2,wh,12,26.2,0,false);sc.add(cg);cw.addCollider(206,cz,14,11,34,'crane');}
+  const cC=[0xc93b32,0x266bb8,0xe89b2d,0x268a5c,0x4b5c72];
+  [[164,-142,2],[176,-142,1],[164,-124,3],[164,-92,2],[178,-92,1],[164,-56,2]].forEach(([cx,cz,st],i)=>{for(let s=0;s<st;s++)B(sc,4.4,3.6,11.2,stdMat(cC[(i+s)%5],0.65,0.28,{map:tx.containerMap}),cx,2.1+s*3.65,cz);cw.addCollider(cx,cz,4.8,11.6,st*3.8,'container');cw.buildingFootprints.push({x:cx,z:cz,w:5,d:12,color:'#5bf59c'});});
+  const sg=new THREE.Group(),st=stdMat(0xf7f2e8,0.55),wd=stdMat(0x9c663b,0.72),gl=stdMat(0x45c8e8,0.1,0.85);sg.position.set(154,0.3,14);
+  B(sg,22,9.5,16,st,0,4.75,0);B(sg,24.5,1.1,18.5,wd,0,9.8,0);B(sg,14,5.2,11,gl,-2,12.8,-1);B(sg,9.5,4.8,0.5,stdMat(0x141b28,0.8),0,2.4,8.05,false);
+  const gt=createNeonSignTexture('SOLARA CUSTOMS','#0e1628','#00e6ff','SAFEHOUSE & GARAGE'),gm=stdMat(0xffffff,0.2,0.1,{map:gt,emissiveMap:gt,emissive:0xffffff,emissiveIntensity:2.2});em.push({mat:gm,base:2.2,alwaysBright:true});
+  B(sg,14,3.2,0.5,gm,0,7.6,8.3,false);B(sg,0.5,3.2,13,gm,11.3,7.6,0,false);sc.add(sg);cw.addCollider(154,14,23,17,15,'safehouse');cw.buildingFootprints.push({x:154,z:14,w:22,d:16,color:'#ffcf6e'});
+  const pm=stdMat(0x8f6b49,0.82),hw=stdMat(0xf7f9fc,0.22,0.22),nv=stdMat(0x193658,0.35),sl=stdMat(0xfff8ed,0.65,0,{side:THREE.DoubleSide});
+  for(const pz of[-10,22,54]){B(sc,44,0.7,5.2,pm,228,0.85,pz);const y=new THREE.Group();y.position.set(240,0.45,pz+7.4);y.rotation.y=M.PI*0.5;B(y,3.8,1.6,12.5,hw);B(y,3.9,0.35,11.8,nv,0,0.25,0,false);B(y,2.9,1.5,6.2,gl,0,1.45,-1,false);B(y,3.1,0.35,6.8,hw,0,2.3,-1.1,false);sc.add(y);}
+  [[-140,220,0.4],[-15,235,-0.6],[110,205,0.8],[285,58,-0.3],[295,-38,0.5]].forEach(([sx,sz,sy])=>{const sb=new THREE.Group();sb.position.set(sx,0.35,sz);sb.rotation.y=sy;B(sb,2.4,1.1,7.8,hw,0,0,0,false);C(sb,0.09,0.12,11.5,6,nv,0,5.8,0,false);const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([0,1.6,0,0,10.8,0,0,2,-4.4],3));g.computeVertexNormals();sb.add(new THREE.Mesh(g,sl));sc.add(sb);});
+}
 
-  const addPalm = (x, z, scale = 1.0, lean = 0.18, dir = 0) => {
-    const y = cityWorld.getTerrainHeight(x, z);
-    if (y < 0.08) return;
-    const grp = new THREE.Group();
-    grp.position.set(x, y, z);
+function buildMonteFaroIsland(sc, cw, em, anim) {
+  const lh=WORLD_CONFIG.lighthousePos,lg=new THREE.Group();lg.position.set(lh.x,cw.getTerrainHeight(lh.x,lh.z)-0.5,lh.z);
+  const wm=stdMat(0xf9f7f2,0.55),rm=stdMat(0xd9383a,0.55),lm=glowMat(0xffd166,3.2);em.push({mat:lm,base:3.2,alwaysBright:true});
+  for(let i=0;i<6;i++)C(lg,4.2-(i+1)*0.34,4.2-i*0.34,5.4,16,i%2?rm:wm,0,i*5.4+2.7,0);
+  C(lg,2.1,2.1,3.4,14,lm,0,34.1,0,false);const cap=new THREE.Mesh(new THREE.ConeGeometry(2.6,3.2,14),rm);cap.position.y=37.3;lg.add(cap);
+  const bG=new THREE.CylinderGeometry(1.4,13,92,18,1,true);bG.translate(0,-46,0);bG.rotateX(M.PI*0.5);
+  const pv=new THREE.Group();pv.position.y=34.1;pv.rotation.y=1.1;
+  pv.add(new THREE.Mesh(bG,new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,vertexShader:`varying vec2 vUv;varying vec3 vN,vV;void main(){vUv=uv;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,fragmentShader:`varying vec2 vUv;varying vec3 vN,vV;void main(){gl_FragColor=vec4(1.,.88,.58,pow(abs(dot(normalize(vN),normalize(vV))),2.)*smoothstep(0.,.15,vUv.y)*smoothstep(1.,.15,vUv.y)*.18);}`})));
+  lg.add(pv);anim.push({type:'rotateY',obj:pv,speed:0.45});sc.add(lg);cw.addCollider(lh.x,lh.z,9,9,36,'lighthouse');
+  const vy=cw.getTerrainHeight(382,166);B(sc,20,7.5,14,wm,382,vy+3.2,166);B(sc,12,0.5,6,glowMat(0x1ee6df,0.6),371,vy+0.6,163,false);cw.addCollider(382,166,21,15,10,'villa');
+}
 
-    // Gracefully curved 4-segment trunk
-    let curY = 0;
-    let curX = 0;
-    const h = 10.5 * scale;
-    for (let s = 0; s < 4; s++) {
-      const segH = h * 0.26;
-      const r0 = (0.34 - s * 0.05) * scale;
-      const r1 = (0.29 - s * 0.05) * scale;
-      const tilt = lean * (s + 0.6) * 0.55;
-      const seg = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, segH, 6), trunkMat);
-      seg.position.set(curX + Math.sin(tilt) * segH * 0.5, curY + segH * 0.48, 0);
-      seg.rotation.z = -tilt;
-      seg.castShadow = true;
-      grp.add(seg);
-      curX += Math.sin(tilt) * segH * 0.92;
-      curY += Math.cos(tilt) * segH * 0.95;
-    }
-    grp.rotation.y = dir;
-
-    // Crown of 7 arched palm fronds
-    const crown = new THREE.Group();
-    crown.position.set(curX, curY, 0);
-    for (let f = 0; f < 7; f++) {
-      const a = (f / 7) * Math.PI * 2;
-      const frond = new THREE.Mesh(new THREE.ConeGeometry(0.95 * scale, 4.4 * scale, 4), frondMat);
-      frond.scale.set(1, 1, 0.22);
-      frond.position.set(Math.cos(a) * 1.9 * scale, -0.3 * scale, Math.sin(a) * 1.9 * scale);
-      frond.rotation.order = 'YXZ';
-      frond.rotation.y = -a + Math.PI * 0.5;
-      frond.rotation.x = 1.18;
-      frond.castShadow = true;
-      crown.add(frond);
-    }
-    grp.add(crown);
-    scene.add(grp);
-    animatedProps.push({ type: 'sway', obj: crown, phase: x * 0.13 + z * 0.09 });
+function buildPalmGrovesAndBeach(sc, cw, anim) {
+  const tr=stdMat(0x7c5b3e,0.9),fr=stdMat(0x2e944b,0.62,0.04,{side:THREE.DoubleSide}),ft=stdMat(0x46ad56,0.65,0.04,{side:THREE.DoubleSide});
+  const cc=stdMat(0x4a321e,0.8),pm=stdMat(0x273242,0.42,0.68),bm=glowMat(0xffbe5c,2.3),rm=stdMat(0xefe6d8,0.72),bn=stdMat(0x8a5b36,0.8);
+  const palm=(x,z,k=1,ln=0.2,dir=0)=>{
+    const y=cw.getTerrainHeight(x,z);if(y<0.08)return;
+    const g=new THREE.Group();g.position.set(x,y,z);let cy=0,cx=0;const h=10.6*k;
+    for(let s=0;s<5;s++){const sh=h*0.21,tl=ln*(s+0.5)*0.48;C(g,(0.3-s*0.045)*k,(0.34-s*0.045)*k,sh,7,tr,cx+M.sin(tl)*sh*0.5,cy+sh*0.48,0).rotation.z=-tl;cx+=M.sin(tl)*sh*0.92;cy+=M.cos(tl)*sh*0.95;}
+    g.rotation.y=dir;const cr=new THREE.Group();cr.position.set(cx,cy,0);
+    for(let c=0;c<3;c++)S(cr,0.22*k,6,6,cc,M.cos(c*2.1)*0.35*k,-0.25*k,M.sin(c*2.1)*0.35*k);
+    for(let f=0;f<10;f++){const t=f>=5?1:0,fg=new THREE.Group();fg.rotation.y=f*2.4+t*0.4;B(fg,0.68*k,0.07*k,2.4*k,fr,0,(t?0.42:0.08)*k,1.2*k).rotation.x=t?-0.35:-0.08;B(fg,0.48*k,0.05*k,2.2*k,ft,0,(t?0.42:-0.35)*k,3.1*k).rotation.x=t?0.32:0.62;cr.add(fg);}
+    g.add(cr);sc.add(g);anim.push({type:'sway',obj:cr,phase:x*0.13+z*0.09});
   };
-
-  // Palm-lined curved Avenida del Sol boardwalk + streetlamps + beach umbrellas
-  const umbColors = [0xff5277, 0x00c9d8, 0xffbe3b, 0xffffff, 0xff7b3d];
-  for (let x = -275; x <= 115; x += 22) {
-    const bz = boulevardZAtX(x);
-    addPalm(x, bz + 12.2, 0.95 + ((Math.abs(x) * 7) % 10) * 0.03, 0.22, (x * 0.3) % 6.28);
-    if (x % 44 === 0) addPalm(x + 9, bz - 12.2, 0.88, 0.14, 1.4);
-
-    // Boulevard streetlamp
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 7.6, 6), lampPoleMat);
-    pole.position.set(x + 11, 4.1, bz + 10.6);
-    pole.castShadow = true;
-    scene.add(pole);
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 8), lampGlowMat);
-    bulb.position.set(x + 11, 7.9, bz + 9.8);
-    scene.add(bulb);
-
-    // Beach umbrella & towel on golden crescent sand
-    const cz = coastZAtX(x);
-    const uz = cz - 9;
-    const uy = cityWorld.getTerrainHeight(x + 5, uz);
-    if (uy > 0.12) {
-      const upole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 5), trunkMat);
-      upole.position.set(x + 5, uy + 1.3, uz);
-      scene.add(upole);
-      const uTop = new THREE.Mesh(
-        new THREE.ConeGeometry(2.1, 0.85, 8),
-        new THREE.MeshStandardMaterial({ color: umbColors[Math.abs(Math.floor(x / 22)) % umbColors.length], roughness: 0.75 })
-      );
-      uTop.position.set(x + 5, uy + 2.5, uz);
-      uTop.castShadow = true;
-      scene.add(uTop);
-    }
+  const uc=[0xff5277,0x00c9d8,0xffbe3b,0xffffff,0xff7b3d];
+  for(let x=-275;x<=115;x+=22){
+    const bz=boulevardZAtX(x);palm(x,bz+12.2,0.95+((M.abs(x)*7)%10)*0.025,0.22,(x*0.3)%6.28);if(x%44===0)palm(x+9,bz-12.2,0.88,0.14,1.4);
+    C(sc,0.11,0.15,7.6,6,pm,x+11,4.1,bz+10.6);S(sc,0.36,8,8,bm,x+11,7.9,bz+9.8);B(sc,14,0.85,0.35,rm,x+11,0.82,bz+20.8,false);B(sc,2.8,0.55,0.95,bn,x+6,0.68,bz+18.8,false);
+    const uz=coastZAtX(x)-9,uy=cw.getTerrainHeight(x+5,uz);
+    if(uy>0.12){C(sc,0.06,0.06,2.6,5,tr,x+5,uy+1.3,uz,false);const u=new THREE.Mesh(new THREE.ConeGeometry(2.2,0.82,10),stdMat(uc[M.abs(M.floor(x/22))%5],0.72));u.position.set(x+5,uy+2.5,uz);u.castShadow=true;sc.add(u);}
   }
-
-  // Palms around Marina Promenade, Financial Park & Monte Faro (keep Marina vista clean!)
-  const extraPalms = [
-    [140, 12], [186, 6], [190, 52], [136, 38], [198, 44],
-    [-22, -55], [22, -55], [-22, -82], [22, -82],
-    [-242, -36], [-198, -36], [-242, -2], [-198, -2],
-    [372, 134], [412, 144], [394, 166], [420, 162],
-  ];
-  for (let i = 0; i < extraPalms.length; i++) {
-    addPalm(extraPalms[i][0], extraPalms[i][1], 0.92 + (i % 3) * 0.12, 0.16, i * 1.1);
-  }
+  const lg=new THREE.Group();lg.position.set(-74,0.35,coastZAtX(-74)-10);
+  for(const sx of[-1.4,1.4])for(const sz of[-1.4,1.4])B(lg,0.24,3.2,0.24,rm,sx,1.6,sz);
+  B(lg,3.6,2.4,3.2,stdMat(0x00d9e8,0.55),0,4.2,0);B(lg,4.2,0.45,3.8,stdMat(0xff5277,0.6),0,5.6,0);sc.add(lg);
+  [[140,12],[186,6],[190,52],[136,38],[198,44],[-22,-55],[22,-55],[-22,-82],[22,-82],[-242,-36],[-198,-36],[-242,-2],[-198,-2],[372,134],[412,144],[394,166],[420,162]].forEach(([px,pz],i)=>palm(px,pz,0.92+(i%3)*0.1,0.16,i*1.1));
 }

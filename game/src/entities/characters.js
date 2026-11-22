@@ -1,427 +1,76 @@
-// Cala Solara — Proportioned Stylized Character Rigs, Distinct 3D Weapons & On-Foot Player Controller
-
+// Cala Solara — Contoured Capsule Character Rigs, Weapons & Player Controller
 import * as THREE from 'three';
 import { WEAPON_CATALOG } from '../config.js';
+import { addBox as B, addCap as P, addCyl as C, addSphere as S, stdMat } from '../render/mesh-utils.js';
 
-export function buildWeaponMesh(weaponId) {
-  const grp = new THREE.Group();
-  const metal = new THREE.MeshStandardMaterial({ color: 0x202632, roughness: 0.35, metalness: 0.78 });
-  const gripMat = new THREE.MeshStandardMaterial({ color: 0x3b2c22, roughness: 0.8 });
-  const accent = new THREE.MeshStandardMaterial({ color: 0xd9a441, roughness: 0.3, metalness: 0.85 });
+const M=Math,V3=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
 
-  let muzzleZ = 0.5;
-  if (weaponId === 'pistol') {
-    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.34), metal);
-    slide.position.set(0, 0.04, 0.12);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, 0.09), gripMat);
-    grip.position.set(0, -0.05, 0.01);
-    grip.rotation.x = 0.25;
-    grp.add(slide, grip);
-    muzzleZ = 0.32;
-  } else if (weaponId === 'smg') {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.48), metal);
-    body.position.set(0, 0.04, 0.16);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 6), metal);
-    barrel.rotation.x = Math.PI * 0.5;
-    barrel.position.set(0, 0.05, 0.48);
-    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.24, 0.07), metal);
-    mag.position.set(0, -0.1, 0.2);
-    mag.rotation.x = 0.18;
-    grp.add(body, barrel, mag);
-    muzzleZ = 0.62;
-  } else if (weaponId === 'shotgun') {
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.32), gripMat);
-    stock.position.set(0, 0.01, -0.08);
-    const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.13, 0.42), metal);
-    receiver.position.set(0, 0.04, 0.2);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.56, 8), metal);
-    barrel.rotation.x = Math.PI * 0.5;
-    barrel.position.set(0, 0.07, 0.55);
-    const pump = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.22), gripMat);
-    pump.position.set(0, 0.01, 0.52);
-    grp.add(stock, receiver, barrel, pump);
-    muzzleZ = 0.86;
-  } else if (weaponId === 'launcher') {
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.72, 10), metal);
-    tube.rotation.x = Math.PI * 0.5;
-    tube.position.set(0, 0.06, 0.28);
-    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.18, 10), accent);
-    drum.rotation.x = Math.PI * 0.5;
-    drum.position.set(0, 0.02, 0.2);
-    grp.add(tube, drum);
-    muzzleZ = 0.68;
-  } else {
-    // Carbine rifle
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.28), metal);
-    stock.position.set(0, 0.02, -0.08);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.46), metal);
-    body.position.set(0, 0.04, 0.22);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.42, 6), metal);
-    barrel.rotation.x = Math.PI * 0.5;
-    barrel.position.set(0, 0.06, 0.62);
-    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.22, 0.08), accent);
-    mag.position.set(0, -0.1, 0.28);
-    mag.rotation.x = 0.22;
-    grp.add(stock, body, barrel, mag);
-    muzzleZ = 0.85;
-  }
-
-  const muzzleAnchor = new THREE.Object3D();
-  muzzleAnchor.position.set(0, 0.06, muzzleZ);
-  grp.add(muzzleAnchor);
-  return { mesh: grp, muzzleAnchor };
+export function buildWeaponMesh(id) {
+  const g=new THREE.Group(),mt=stdMat(0x202632,.32,.8),gr=stdMat(0x3b2c22,.8),ac=stdMat(0xd9a441,.3,.85);let mz=.5;
+  if(id==='pistol'){B(g,.07,.09,.34,mt,0,.04,.12,false);B(g,.06,.16,.08,gr,0,-.05,.01,false).rotation.x=.25;mz=.32;}
+  else if(id==='smg'){B(g,.085,.13,.46,mt,0,.04,.16,false);C(g,.022,.022,.24,6,mt,0,.05,.48,false).rotation.x=1.57;B(g,.05,.24,.065,mt,0,-.1,.2,false).rotation.x=.18;mz=.62;}
+  else if(id==='shotgun'){B(g,.08,.12,.32,gr,0,.01,-.08,false);B(g,.095,.13,.42,mt,0,.04,.2,false);C(g,.03,.03,.56,8,mt,0,.07,.55,false).rotation.x=1.57;mz=.86;}
+  else if(id==='launcher'){C(g,.072,.072,.72,10,mt,0,.06,.28,false).rotation.x=1.57;C(g,.11,.11,.18,10,ac,0,.02,.2,false).rotation.x=1.57;mz=.68;}
+  else{B(g,.08,.12,.28,mt,0,.02,-.08,false);B(g,.09,.14,.46,mt,0,.04,.22,false);C(g,.022,.022,.42,6,mt,0,.06,.62,false).rotation.x=1.57;B(g,.055,.22,.08,ac,0,-.1,.28,false).rotation.x=.22;mz=.85;}
+  const muzzleAnchor=new THREE.Object3D();muzzleAnchor.position.set(0,.06,mz);g.add(muzzleAnchor);return{mesh:g,muzzleAnchor};
 }
 
-export function createStylizedCharacterRig({
-  jacket = 0xff4c6b,
-  shirt = 0xf5f2eb,
-  pants = 0x222938,
-  skin = 0xdba078,
-  hair = 0x1c1718,
-  hat = null,
-  sunglasses = true,
-  weaponId = null,
-} = {}) {
-  const root = new THREE.Group();
-  const body = new THREE.Group();
-  root.add(body);
-
-  const jacketMat = new THREE.MeshStandardMaterial({ color: jacket, roughness: 0.65 });
-  const shirtMat = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.72 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: pants, roughness: 0.78 });
-  const skinMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.62 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: hair, roughness: 0.75 });
-  const bootMat = new THREE.MeshStandardMaterial({ color: 0x171a20, roughness: 0.5 });
-
-  // Articulated legs with boots
-  const leftLeg = new THREE.Group();
-  leftLeg.position.set(-0.13, 0.88, 0);
-  const rightLeg = new THREE.Group();
-  rightLeg.position.set(0.13, 0.88, 0);
-
-  for (const leg of [leftLeg, rightLeg]) {
-    const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.44, 0.18), pantsMat);
-    thigh.position.y = -0.22;
-    thigh.castShadow = true;
-    const shin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.36, 0.15), pantsMat);
-    shin.position.y = -0.58;
-    shin.castShadow = true;
-    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.14, 0.24), bootMat);
-    boot.position.set(0, -0.81, 0.04);
-    leg.add(thigh, shin, boot);
-  }
-  body.add(leftLeg, rightLeg);
-
-  // Tailored torso with open jacket lapels & shirt center
-  const torso = new THREE.Group();
-  torso.position.set(0, 1.24, 0);
-  const shirtCore = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.58, 0.24), shirtMat);
-  shirtCore.castShadow = true;
-  torso.add(shirtCore);
-
-  const jacketBack = new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.62, 0.14), jacketMat);
-  jacketBack.position.set(0, 0, -0.07);
-  jacketBack.castShadow = true;
-  torso.add(jacketBack);
-
-  for (const sx of [-0.16, 0.16]) {
-    const lapel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.62, 0.13), jacketMat);
-    lapel.position.set(sx, 0, 0.08);
-    lapel.castShadow = true;
-    torso.add(lapel);
-  }
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.27), bootMat);
-  belt.position.y = -0.3;
-  torso.add(belt);
-  body.add(torso);
-
-  // Articulated shoulders & arms
-  const leftArm = new THREE.Group();
-  leftArm.position.set(-0.31, 1.46, 0);
-  const rightArm = new THREE.Group();
-  rightArm.position.set(0.31, 1.46, 0);
-
-  for (const arm of [leftArm, rightArm]) {
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.34, 0.15), jacketMat);
-    upper.position.y = -0.15;
-    upper.castShadow = true;
-    const fore = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.13), skinMat);
-    fore.position.set(0, -0.44, 0.04);
-    fore.castShadow = true;
-    arm.add(upper, fore);
-  }
-  body.add(leftArm, rightArm);
-
-  // Proportioned rounded head, styled hair, sunglasses / helmet (zero Minecraft cubes!)
-  const head = new THREE.Group();
-  head.position.set(0, 1.72, 0);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.14, 8), skinMat);
-  neck.position.y = -0.14;
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 12), skinMat);
-  skull.scale.set(0.92, 1.08, 0.96);
-  skull.castShadow = true;
-  head.add(neck, skull);
-
-  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.152, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
-  hairCap.position.set(0, 0.02, -0.015);
-  head.add(hairCap);
-  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), hairMat);
-  hairBack.scale.set(1.05, 1.2, 0.65);
-  hairBack.position.set(0, -0.02, -0.1);
-  head.add(hairBack);
-
-  if (sunglasses) {
-    const shadeMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.1, metalness: 0.9 });
-    const shades = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.055, 0.06), shadeMat);
-    shades.position.set(0, 0.02, 0.115);
-    head.add(shades);
-  }
-  if (hat === 'police') {
-    const capMat = new THREE.MeshStandardMaterial({ color: 0x16243d, roughness: 0.6 });
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.15, 0.1, 10), capMat);
-    cap.position.set(0, 0.17, 0);
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.16), bootMat);
-    visor.position.set(0, 0.13, 0.12);
-    head.add(cap, visor);
-  } else if (hat === 'swat') {
-    const helmMat = new THREE.MeshStandardMaterial({ color: 0x161b24, roughness: 0.45, metalness: 0.4 });
-    const helm = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), helmMat);
-    helm.position.set(0, 0.07, 0);
-    head.add(helm);
-  }
-  body.add(head);
-
-  // Weapon mount on right hand
-  const weaponSocket = new THREE.Group();
-  weaponSocket.position.set(0, -0.56, 0.14);
-  rightArm.add(weaponSocket);
-
-  let weaponObj = null;
-  const setWeapon = (id) => {
-    if (weaponObj) weaponSocket.remove(weaponObj.mesh);
-    if (!id) {
-      weaponObj = null;
-      return;
-    }
-    weaponObj = buildWeaponMesh(id);
-    weaponSocket.add(weaponObj.mesh);
+export function createStylizedCharacterRig({ jacket = 0xff4c6b, shirt = 0xf5f2eb, pants = 0x222938, skin = 0xdba078, hair = 0x1c1718, hat = null, sunglasses = true, weaponId = null, ponytail = false } = {}) {
+  const root=new THREE.Group(),body=new THREE.Group(),jm=stdMat(jacket,.62),sm=stdMat(shirt,.7),pm=stdMat(pants,.76),sk=stdMat(skin,.58),hm=stdMat(hair,.72),bm=stdMat(0x171a20,.48);root.add(body);
+  const leftLeg=new THREE.Group(),rightLeg=new THREE.Group();leftLeg.position.set(.13,.94,0);rightLeg.position.set(-.13,.94,0);
+  for(const lg of[leftLeg,rightLeg]){P(lg,.085,.26,pm,0,-.22,0);P(lg,.068,.26,pm,0,-.58,0);B(lg,.14,.13,.23,bm,0,-.81,.04,false);}
+  const torso=new THREE.Group();torso.position.set(0,1.24,0);
+  C(torso,.21,.17,.6,10,sm).scale.set(1.12,1,.68);C(torso,.23,.19,.62,10,jm,0,0,-.025).scale.set(1.14,1,.64);C(torso,.19,.19,.08,10,bm,0,-.29,0,false).scale.set(1.14,1,.74);
+  const leftArm=new THREE.Group(),rightArm=new THREE.Group();leftArm.position.set(.28,1.48,0);rightArm.position.set(-.28,1.48,0);
+  for(const ar of[leftArm,rightArm]){S(ar,.085,8,8,jm,0,0,0,true);P(ar,.068,.22,jm,0,-.17,0);P(ar,.056,.22,sk,0,-.45,.03);}
+  const head=new THREE.Group();head.position.set(0,1.72,0);C(head,.058,.068,.14,8,sk,0,-.14,0,false);S(head,.142,12,10,sk,0,0,0,true).scale.set(.92,1.08,.96);
+  const ht=new THREE.Mesh(new THREE.SphereGeometry(.15,12,8,0,6.28,0,1.82),hm);ht.position.set(0,.02,-.015);head.add(ht);S(head,.115,8,8,hm,0,-.02,-.1).scale.set(1.05,1.2,.65);
+  if(ponytail)P(head,.048,.22,hm,0,-.12,-.17,false).rotation.x=.35;
+  if(sunglasses)B(head,.22,.055,.06,stdMat(0x0b1220,.1,.9),0,.02,.115,false);
+  if(hat==='police'){C(head,.16,.15,.1,10,stdMat(0x16243d,.6),0,.17,0,false);B(head,.2,.03,.16,bm,0,.13,.12,false);}else if(hat==='swat')S(head,.18,10,8,stdMat(0x161b24,.45,.4),0,.07,0);
+  body.add(leftLeg,rightLeg,torso,leftArm,rightArm,head);
+  const ws=new THREE.Group();ws.position.set(0,-.56,.14);rightArm.add(ws);let wp=null;
+  const setWeapon=id=>{if(wp)ws.remove(wp.mesh);wp=id?buildWeaponMesh(id):null;if(wp)ws.add(wp.mesh);};if(weaponId)setWeapon(weaponId);
+  const getMuzzleWorldPos=(t=V3())=>wp?wp.muzzleAnchor.getWorldPosition(t):root.position.clone().add(V3(0,1.38,0));
+  const animatePose=(wc,spd,aim,dt,roll=0)=>{
+    if(roll>0){body.rotation.x=roll*6.283;body.position.y=M.sin(roll*M.PI)*.32;return;}
+    body.rotation.x=body.position.y=0;const sw=M.sin(wc)*M.min(1,spd/5.5)*.68;leftLeg.rotation.x=sw;rightLeg.rotation.x=-sw;
+    if(aim&&wp){rightArm.rotation.set(-1.46,.08,0);leftArm.rotation.set(-1.32,-.48,0);ws.rotation.x=1.46;torso.rotation.y=-.14;}
+    else{rightArm.rotation.set(-sw*.6,0,0);leftArm.rotation.set(sw*.6,0,0);ws.rotation.x=.25;torso.rotation.y=0;}
   };
-  if (weaponId) setWeapon(weaponId);
-
-  const getMuzzleWorldPos = (targetVec = new THREE.Vector3()) => {
-    if (weaponObj) {
-      weaponObj.muzzleAnchor.getWorldPosition(targetVec);
-      return targetVec;
-    }
-    return root.position.clone().add(new THREE.Vector3(0, 1.38, 0));
-  };
-
-  const animatePose = (walkCycle, speed, aiming, dt, rollProgress = 0) => {
-    if (rollProgress > 0) {
-      body.rotation.x = rollProgress * Math.PI * 2;
-      body.position.y = Math.sin(rollProgress * Math.PI) * 0.32;
-      return;
-    }
-    body.rotation.x = 0;
-    body.position.y = 0;
-
-    const swing = Math.sin(walkCycle) * Math.min(1, speed / 5.5) * 0.68;
-    leftLeg.rotation.x = swing;
-    rightLeg.rotation.x = -swing;
-
-    if (aiming && weaponObj) {
-      // Crisp 2-handed aiming stance aimed directly forward along character yaw!
-      rightArm.rotation.x = -1.48;
-      rightArm.rotation.y = -0.06;
-      leftArm.rotation.x = -1.36;
-      leftArm.rotation.y = 0.46;
-      weaponSocket.rotation.x = 1.48;
-    } else {
-      rightArm.rotation.x = -swing * 0.6;
-      rightArm.rotation.y = 0;
-      leftArm.rotation.x = swing * 0.6;
-      leftArm.rotation.y = 0;
-      weaponSocket.rotation.x = 0.25;
-    }
-  };
-
-  return { root, body, leftLeg, rightLeg, leftArm, rightArm, head, setWeapon, getMuzzleWorldPos, animatePose };
+  return{root,body,leftLeg,rightLeg,leftArm,rightArm,head,setWeapon,getMuzzleWorldPos,animatePose};
 }
 
 export class PlayerController {
   constructor(scene, cityWorld, vehicleSystem) {
-    this.scene = scene;
-    this.cityWorld = cityWorld;
-    this.vehicleSystem = vehicleSystem;
-
-    // Camila Vega — Sun-soaked coastal anti-heroine in coral-red tailored jacket & cream tee
-    this.rig = createStylizedCharacterRig({
-      jacket: 0xe63c5e,
-      shirt: 0xf7f3ea,
-      pants: 0x1d2536,
-      skin: 0xdca178,
-      hair: 0x181316,
-      sunglasses: true,
-      weaponId: 'smg',
-    });
-    scene.add(this.rig.root);
-
-    this.pos = new THREE.Vector3(164, 0.35, 32);
-    this.vel = new THREE.Vector3();
-    this.yaw = 0;
-    this.hp = 100;
-    this.maxHp = 100;
-    this.armor = 75;
-    this.maxArmor = 100;
-    this.cash = 14850;
-    this.vehicle = null;
-    this.aiming = false;
-    this.walkCycle = 0;
-    this.rollTimer = 0;
-    this.rollDir = new THREE.Vector3();
-    this.weaponIndex = 1; // Starts with Viper SMG ready
-    this.ammo = WEAPON_CATALOG.map((w) => ({ mag: w.mag, reserve: w.reserve }));
-    this.rig.root.position.copy(this.pos);
+    this.scene=scene;this.cityWorld=cityWorld;this.vehicleSystem=vehicleSystem;
+    this.rig=createStylizedCharacterRig({jacket:0xe63c5e,shirt:0xf7f3ea,pants:0x1d2536,skin:0xdca178,hair:0x181316,sunglasses:true,weaponId:'smg',ponytail:true});
+    scene.add(this.rig.root);this.pos=V3(164,.35,32);this.vel=V3();this.yaw=0;
+    this.hp=this.maxHp=100;this.armor=75;this.maxArmor=100;this.cash=14850;
+    this.vehicle=null;this.aiming=false;this.walkCycle=0;this.rollTimer=0;this.rollDir=V3();
+    this.weaponIndex=1;this.ammo=WEAPON_CATALOG.map(w=>({mag:w.mag,reserve:w.reserve}));this.rig.root.position.copy(this.pos);
   }
 
-  get currentWeapon() {
-    return WEAPON_CATALOG[this.weaponIndex];
-  }
+  get currentWeapon() { return WEAPON_CATALOG[this.weaponIndex]; }
+  selectWeapon(i) { this.weaponIndex=((i%WEAPON_CATALOG.length)+WEAPON_CATALOG.length)%WEAPON_CATALOG.length;this.rig.setWeapon(WEAPON_CATALOG[this.weaponIndex].id); }
+  enterVehicle(v) { if(!v||v.destroyed)return false;this.vehicle=v;v.role='player';this.pos.copy(v.pos);this.yaw=v.yaw;this.rig.root.visible=false;return true; }
+  exitVehicle() { if(!this.vehicle)return null;const v=this.vehicle;this.pos.copy(v.pos).add(V3(-v.spec.width*.78-.65,0,0).applyAxisAngle(V3(0,1,0),v.yaw));this.pos.y=M.max(.25,this.cityWorld.getTerrainHeight(this.pos.x,this.pos.z));this.yaw=v.yaw;this.rig.root.position.copy(this.pos);this.rig.root.rotation.y=this.yaw;this.rig.root.visible=true;this.vehicle=null;return v; }
+  findNearestVehicle(maxD = 6.2) { let b=null,bd=maxD;for(const v of this.vehicleSystem.vehicles)if(!v.destroyed){const d=M.hypot(v.pos.x-this.pos.x,v.pos.z-this.pos.z);if(d<bd){bd=d;b=v;}}return b; }
+  takeDamage(a) { if(this.rollTimer>0)return;let r=a;if(this.armor>0){const ab=M.min(this.armor,r*.65);this.armor-=ab;r-=ab;}this.hp=M.max(0,this.hp-r); }
+  startDodgeRoll(cy) { if(this.vehicle||this.rollTimer>0)return;this.rollTimer=.42;this.rollDir.set(M.sin(this.yaw||cy),0,M.cos(this.yaw||cy)).normalize(); }
 
-  selectWeapon(idx) {
-    const clamped = ((idx % WEAPON_CATALOG.length) + WEAPON_CATALOG.length) % WEAPON_CATALOG.length;
-    this.weaponIndex = clamped;
-    this.rig.setWeapon(WEAPON_CATALOG[clamped].id);
-  }
-
-  enterVehicle(v) {
-    if (!v || v.destroyed) return false;
-    this.vehicle = v;
-    v.role = 'player';
-    this.pos.copy(v.pos);
-    this.yaw = v.yaw;
-    this.rig.root.visible = false;
-    return true;
-  }
-
-  exitVehicle() {
-    if (!this.vehicle) return null;
-    const v = this.vehicle;
-    const sideOffset = new THREE.Vector3(-v.spec.width * 0.78 - 0.65, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), v.yaw);
-    this.pos.copy(v.pos).add(sideOffset);
-    this.pos.y = Math.max(0.25, this.cityWorld.getTerrainHeight(this.pos.x, this.pos.z));
-    this.yaw = v.yaw;
-    this.rig.root.position.copy(this.pos);
-    this.rig.root.rotation.y = this.yaw;
-    this.rig.root.visible = true;
-    this.vehicle = null;
-    return v;
-  }
-
-  findNearestVehicle(maxDist = 6.2) {
-    let best = null;
-    let bestD = maxDist;
-    for (const v of this.vehicleSystem.vehicles) {
-      if (v.destroyed) continue;
-      const d = Math.hypot(v.pos.x - this.pos.x, v.pos.z - this.pos.z);
-      if (d < bestD) {
-        bestD = d;
-        best = v;
-      }
-    }
-    return best;
-  }
-
-  takeDamage(amount) {
-    if (this.rollTimer > 0) return; // Dodge-roll i-frames
-    let rem = amount;
-    if (this.armor > 0) {
-      const absorbed = Math.min(this.armor, rem * 0.65);
-      this.armor -= absorbed;
-      rem -= absorbed;
-    }
-    this.hp = Math.max(0, this.hp - rem);
-  }
-
-  startDodgeRoll(camYaw) {
-    if (this.vehicle || this.rollTimer > 0) return;
-    this.rollTimer = 0.42;
-    this.rollDir.set(Math.sin(this.yaw || camYaw), 0, Math.cos(this.yaw || camYaw)).normalize();
-  }
-
-  updateOnFoot(input, camYaw, dt) {
-    if (this.vehicle) {
-      this.pos.copy(this.vehicle.pos);
-      this.yaw = this.vehicle.yaw;
-      return;
-    }
-
-    let mx = 0;
-    let mz = 0;
-    if (input.keys.KeyW || input.keys.ArrowUp) mz += 1;
-    if (input.keys.KeyS || input.keys.ArrowDown) mz -= 1;
-    if (input.keys.KeyA || input.keys.ArrowLeft) mx += 1;
-    if (input.keys.KeyD || input.keys.ArrowRight) mx -= 1;
-
-    const sprinting = !!(input.keys.ShiftLeft || input.keys.ShiftRight);
-    this.aiming = !!(input.mouseRight || input.mouseLeft);
-
-    const fwdX = Math.sin(camYaw);
-    const fwdZ = Math.cos(camYaw);
-    const rightX = Math.cos(camYaw);
-    const rightZ = -Math.sin(camYaw);
-
-    let moveX = fwdX * mz + rightX * mx;
-    let moveZ = fwdZ * mz + rightZ * mx;
-    const len = Math.hypot(moveX, moveZ);
-
-    let speed = 0;
-    if (this.rollTimer > 0) {
-      this.rollTimer = Math.max(0, this.rollTimer - dt);
-      moveX = this.rollDir.x;
-      moveZ = this.rollDir.z;
-      speed = 13.5;
-    } else if (len > 0.01) {
-      moveX /= len;
-      moveZ /= len;
-      speed = this.aiming ? 5.2 : (sprinting ? 10.6 : 6.8);
-    }
-
-    const nextX = this.pos.x + moveX * speed * dt;
-    const nextZ = this.pos.z + moveZ * speed * dt;
-
-    if (!this.cityWorld.isWater(nextX, nextZ)) {
-      let blocked = false;
-      const r = 0.55;
-      for (const c of this.cityWorld.colliders) {
-        if (this.pos.y > c.maxY) continue;
-        if (nextX + r > c.minX && nextX - r < c.maxX && nextZ + r > c.minZ && nextZ - r < c.maxZ) {
-          blocked = true;
-          break;
-        }
-      }
-      if (!blocked) {
-        this.pos.x = nextX;
-        this.pos.z = nextZ;
-      }
-    }
-
-    this.pos.y = Math.max(0.2, this.cityWorld.getTerrainHeight(this.pos.x, this.pos.z));
-
-    if (this.aiming) {
-      this.yaw = camYaw;
-    } else if (len > 0.01) {
-      const targetYaw = Math.atan2(moveX, moveZ);
-      let diff = targetYaw - this.yaw;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      this.yaw += diff * Math.min(1, dt * 12);
-    }
-
-    this.walkCycle += speed * dt * 1.65;
-    this.rig.root.position.copy(this.pos);
-    this.rig.root.rotation.y = this.yaw;
-    const rollProg = this.rollTimer > 0 ? 1 - this.rollTimer / 0.42 : 0;
-    this.rig.animatePose(this.walkCycle, speed, this.aiming, dt, rollProg);
+  updateOnFoot(inp, cy, dt) {
+    if(this.vehicle){this.pos.copy(this.vehicle.pos);this.yaw=this.vehicle.yaw;return;}
+    const K=inp.keys,mx=(K.KeyA||K.ArrowLeft?1:0)-(K.KeyD||K.ArrowRight?1:0),mz=(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0);
+    this.aiming=!!(inp.mouseRight||inp.mouseLeft);
+    let vx=M.sin(cy)*mz+M.cos(cy)*mx,vz=M.cos(cy)*mz-M.sin(cy)*mx,l=M.hypot(vx,vz),spd=0;
+    if(this.rollTimer>0){this.rollTimer=M.max(0,this.rollTimer-dt);vx=this.rollDir.x;vz=this.rollDir.z;spd=13.5;}
+    else if(l>.01){vx/=l;vz/=l;spd=this.aiming?5.2:((K.ShiftLeft||K.ShiftRight)?10.6:6.8);}
+    const nx=this.pos.x+vx*spd*dt,nz=this.pos.z+vz*spd*dt;
+    if(!this.cityWorld.isWater(nx,nz)&&!this.cityWorld.colliders.some(c=>this.pos.y<=c.maxY&&nx+.55>c.minX&&nx-.55<c.maxX&&nz+.55>c.minZ&&nz-.55<c.maxZ)){this.pos.x=nx;this.pos.z=nz;}
+    this.pos.y=M.max(.2,this.cityWorld.getTerrainHeight(this.pos.x,this.pos.z));
+    if(this.aiming)this.yaw=cy;else if(l>.01){let d=M.atan2(vx,vz)-this.yaw;while(d>M.PI)d-=6.283;while(d<-M.PI)d+=6.283;this.yaw+=d*M.min(1,dt*12);}
+    this.walkCycle+=spd*dt*1.65;this.rig.root.position.copy(this.pos);this.rig.root.rotation.y=this.yaw;
+    this.rig.animatePose(this.walkCycle,spd,this.aiming,dt,this.rollTimer>0?1-this.rollTimer/.42:0);
   }
 }
