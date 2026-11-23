@@ -1,50 +1,18 @@
-// Custom Lightweight HDR Bloom + ACES Filmic Color Grading Post-Processor
+// Cala Solara — 4x MSAA HDR Bloom & ACES Filmic Color Grading Post-Processor
 import * as THREE from 'three';
 
-const V=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`;
-const BR=`uniform sampler2D tScene;uniform float uThreshold,uKnee;varying vec2 vUv;void main(){vec3 c=texture2D(tScene,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722)),s=clamp((l-uThreshold+uKnee)/(2.*uKnee+.0001),0.,1.);s*=s;gl_FragColor=vec4(min(c*max(max(l-uThreshold,0.)/max(l,.0001),s*.42)*max(s,step(uThreshold,l)),vec3(6.)),1.);}`;
-const BL=`uniform sampler2D tInput;uniform vec2 uDir;varying vec2 vUv;void main(){vec3 a=texture2D(tInput,vUv).rgb*.22702703;a+=(texture2D(tInput,vUv+uDir*1.3846154).rgb+texture2D(tInput,vUv-uDir*1.3846154).rgb)*.31621622;a+=(texture2D(tInput,vUv+uDir*3.2307692).rgb+texture2D(tInput,vUv-uDir*3.2307692).rgb)*.07027027;gl_FragColor=vec4(a,1.);}`;
-const CP=`uniform sampler2D tScene,tBloom;uniform float uBloomStrength,uExposure,uVignette;uniform vec3 uWarmTint;varying vec2 vUv;vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}void main(){vec3 m=aces((texture2D(tScene,vUv).rgb+texture2D(tBloom,vUv).rgb*uBloomStrength)*uExposure*uWarmTint);m=mix(vec3(dot(m,vec3(.299,.587,.114))),m,1.12);vec2 p=(vUv-.5)*2.;m*=clamp(1.-dot(p,p)*uVignette,.65,1.);gl_FragColor=vec4(pow(clamp(m,0.,1.),vec3(1./2.2)),1.);}`;
-
 export class BloomPostProcessor {
-  constructor(renderer, width, height) {
-    this.renderer=renderer;this.enabled=true;const gl=renderer.getContext(),is2=renderer.capabilities.isWebGL2;
-    this.targetType=(is2?(gl.getExtension('EXT_color_buffer_float')||gl.getExtension('EXT_color_buffer_half_float')):gl.getExtension('OES_texture_half_float'))?THREE.HalfFloatType:THREE.UnsignedByteType;
-    this.orthoCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
-    const sh=(f,u)=>new THREE.ShaderMaterial({vertexShader:V,fragmentShader:f,uniforms:u,depthTest:false,depthWrite:false});
-    this.brightMat=sh(BR,{tScene:{value:null},uThreshold:{value:.72},uKnee:{value:.32}});
-    this.blurMat=sh(BL,{tInput:{value:null},uDir:{value:new THREE.Vector2(1/512,0)}});
-    this.compMat=sh(CP,{tScene:{value:null},tBloom:{value:null},uBloomStrength:{value:.72},uExposure:{value:1.08},uVignette:{value:.14},uWarmTint:{value:new THREE.Vector3(1.03,1,.96)}});
-    this.quadScene=new THREE.Scene();this.quadMesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),this.compMat);this.quadScene.add(this.quadMesh);
-    this.resize(width,height);
+  constructor(rn,w,h){
+    const w2=rn.capabilities.isWebGL2,gl=rn.getContext(),hf=w2?(gl.getExtension('EXT_color_buffer_float')||gl.getExtension('EXT_color_buffer_half_float')):gl.getExtension('OES_texture_half_float');
+    const sh=(f,u)=>new THREE.ShaderMaterial({vertexShader:QUAD_VERTEX_SHADER,fragmentShader:f,uniforms:u,depthTest:false,depthWrite:false});
+    const bm=sh(BLOOM_EXTRACT_SHADER,{tScene:{value:null},uThreshold:{value:.88},uKnee:{value:.28}}),bl=sh(GAUSSIAN_BLUR_SHADER,{tInput:{value:null},uDir:{value:new THREE.Vector2(1/512,0)}}),cm=sh(COMPOSITE_GRADE_SHADER,{tScene:{value:null},tBloom:{value:null},uBloom:{value:.44},uExposure:{value:1.04},uVignette:{value:.1},uWarmTint:{value:new THREE.Vector3(1.04,1,.94)}}),qs=new THREE.Scene(),qm=new THREE.Mesh(new THREE.PlaneGeometry(2,2),cm);qs.add(qm);
+    Object.assign(this,{renderer:rn,enabled:true,isWebGL2:w2,targetType:hf?THREE.HalfFloatType:THREE.UnsignedByteType,orthoCam:new THREE.OrthographicCamera(-1,1,1,-1,0,1),brightMat:bm,blurMat:bl,compMat:cm,quadScene:qs,quadMesh:qm});this.resize(w,h);
   }
-
-  setGrade({ threshold, bloomStrength, exposure, vignette, warmTint }) {
-    if(threshold!==undefined)this.brightMat.uniforms.uThreshold.value=threshold;
-    if(bloomStrength!==undefined)this.compMat.uniforms.uBloomStrength.value=bloomStrength;
-    if(exposure!==undefined)this.compMat.uniforms.uExposure.value=exposure;
-    if(vignette!==undefined)this.compMat.uniforms.uVignette.value=vignette;
-    if(warmTint)this.compMat.uniforms.uWarmTint.value.set(...warmTint);
-  }
-
-  resize(w, h) {
-    const W=Math.max(2,Math.floor(w)),H=Math.max(2,Math.floor(h)),bw=Math.max(2,Math.floor(W*.35)),bh=Math.max(2,Math.floor(H*.35));
-    if(this.sceneRT){this.sceneRT.dispose();this.bloomA.dispose();this.bloomB.dispose();}
-    const o={type:this.targetType,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat};
-    this.sceneRT=new THREE.WebGLRenderTarget(W,H,{...o,depthBuffer:true});this.bloomA=new THREE.WebGLRenderTarget(bw,bh,{...o,depthBuffer:false});this.bloomB=new THREE.WebGLRenderTarget(bw,bh,{...o,depthBuffer:false});
-    this.bloomW=bw;this.bloomH=bh;
-  }
-
-  render(scene, camera) {
-    const r=this.renderer;if(!this.enabled){r.setRenderTarget(null);r.render(scene,camera);return;}
-    r.setRenderTarget(this.sceneRT);r.clear();r.render(scene,camera);
-    this.quadMesh.material=this.brightMat;this.brightMat.uniforms.tScene.value=this.sceneRT.texture;r.setRenderTarget(this.bloomA);r.render(this.quadScene,this.orthoCam);
-    this.quadMesh.material=this.blurMat;
-    for(const sp of[1,2.1]){
-      this.blurMat.uniforms.tInput.value=this.bloomA.texture;this.blurMat.uniforms.uDir.value.set(sp/this.bloomW,0);r.setRenderTarget(this.bloomB);r.render(this.quadScene,this.orthoCam);
-      this.blurMat.uniforms.tInput.value=this.bloomB.texture;this.blurMat.uniforms.uDir.value.set(0,sp/this.bloomH);r.setRenderTarget(this.bloomA);r.render(this.quadScene,this.orthoCam);
-    }
-    this.quadMesh.material=this.compMat;this.compMat.uniforms.tScene.value=this.sceneRT.texture;this.compMat.uniforms.tBloom.value=this.bloomA.texture;
-    r.setRenderTarget(null);r.render(this.quadScene,this.orthoCam);
-  }
+  setGrade({threshold,bloomStrength,exposure,vignette,warmTint}){const c=this.compMat.uniforms;if(threshold!==undefined)this.brightMat.uniforms.uThreshold.value=threshold;if(bloomStrength!==undefined)c.uBloom.value=bloomStrength;if(exposure!==undefined)c.uExposure.value=exposure;if(vignette!==undefined)c.uVignette.value=vignette;if(warmTint)c.uWarmTint.value.set(...warmTint);}
+  resize(W,H){const t=this,w=Math.max(2,W|0),h=Math.max(2,H|0),bw=Math.max(2,(w*.4)|0),bh=Math.max(2,(h*.4)|0),o={type:t.targetType,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat};if(t.sceneRT){t.sceneRT.dispose();t.bloomA.dispose();t.bloomB.dispose();}t.sceneRT=new THREE.WebGLRenderTarget(w,h,{...o,depthBuffer:true,samples:t.isWebGL2?4:0});t.bloomA=new THREE.WebGLRenderTarget(bw,bh,{...o,depthBuffer:false});t.bloomB=new THREE.WebGLRenderTarget(bw,bh,{...o,depthBuffer:false});t.bloomW=bw;t.bloomH=bh;}
+  render(sc,cam){const t=this,r=t.renderer,q=t.quadMesh,qs=t.quadScene,oc=t.orthoCam;if(!t.enabled){r.setRenderTarget(null);r.render(sc,cam);return;}r.setRenderTarget(t.sceneRT);r.clear();r.render(sc,cam);q.material=t.brightMat;t.brightMat.uniforms.tScene.value=t.sceneRT.texture;r.setRenderTarget(t.bloomA);r.render(qs,oc);q.material=t.blurMat;const bu=t.blurMat.uniforms;for(const s of[1,2.1]){bu.tInput.value=t.bloomA.texture;bu.uDir.value.set(s/t.bloomW,0);r.setRenderTarget(t.bloomB);r.render(qs,oc);bu.tInput.value=t.bloomB.texture;bu.uDir.value.set(0,s/t.bloomH);r.setRenderTarget(t.bloomA);r.render(qs,oc);}q.material=t.compMat;t.compMat.uniforms.tScene.value=t.sceneRT.texture;t.compMat.uniforms.tBloom.value=t.bloomA.texture;r.setRenderTarget(null);r.render(qs,oc);}
 }
+const QUAD_VERTEX_SHADER=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`;
+const BLOOM_EXTRACT_SHADER=`uniform sampler2D tScene;uniform float uThreshold,uKnee;varying vec2 vUv;void main(){vec3 c=texture2D(tScene,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722)),s=clamp((l-uThreshold+uKnee)/(2.*uKnee+.0001),0.,1.);s*=s;gl_FragColor=vec4(min(c*max(max(l-uThreshold,0.)/max(l,.0001),s*.32)*max(s,step(uThreshold,l)),vec3(4.5)),1.);}`;
+const GAUSSIAN_BLUR_SHADER=`uniform sampler2D tInput;uniform vec2 uDir;varying vec2 vUv;void main(){vec3 a=texture2D(tInput,vUv).rgb*.22702703;a+=(texture2D(tInput,vUv+uDir*1.3846154).rgb+texture2D(tInput,vUv-uDir*1.3846154).rgb)*.31621622;a+=(texture2D(tInput,vUv+uDir*3.2307692).rgb+texture2D(tInput,vUv-uDir*3.2307692).rgb)*.07027027;gl_FragColor=vec4(a,1.);}`;
+const COMPOSITE_GRADE_SHADER=`uniform sampler2D tScene,tBloom;uniform float uBloom,uExposure,uVignette;uniform vec3 uWarmTint;varying vec2 vUv;vec3 acesFilmicTonemap(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}void main(){vec3 c=acesFilmicTonemap((texture2D(tScene,vUv).rgb+texture2D(tBloom,vUv).rgb*uBloom)*uExposure*uWarmTint);c=mix(vec3(dot(c,vec3(.299,.587,.114))),c,1.16);c=clamp((c-.5)*1.04+.5,0.,1.);vec2 p=(vUv-.5)*2.;c*=clamp(1.-dot(p,p)*uVignette,.72,1.);gl_FragColor=vec4(pow(clamp(c,0.,1.),vec3(1./2.2)),1.);}`;

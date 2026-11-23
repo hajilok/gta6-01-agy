@@ -1,39 +1,23 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CALA SOLARA — Open-World Crime</title>
-  <link rel="stylesheet" href="./styles/hud.css" />
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "./vendor/three.module.min.js"
-      }
-    }
-  </script>
-</head>
-<body>
-  <canvas id="game-canvas"></canvas>
-
-  <div id="hud-root" class="hidden">
-    <div id="hud-top-left"></div>
-    <div id="hud-top-right"></div>
-    <div id="hud-crosshair" class="hidden"><span></span></div>
-    <div id="hud-prompt" class="hidden"></div>
-    <div id="hud-radio-banner" class="hidden"></div>
-    <div id="hud-comms" class="hidden"></div>
-    <div id="hud-bottom-left">
-      <canvas id="minimap-canvas" width="224" height="152"></canvas>
-      <div id="hud-vitals"></div>
-    </div>
-    <div id="hud-bottom-right"></div>
-  </div>
-
-  <div id="hub-overlay" class="hidden"></div>
-  <div id="title-overlay"></div>
-  <div id="toast-feed"></div>
-
-  <script type="module" src="./src/main.js"></script>
-</body>
-</html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CALA SOLARA — 3D Open-World Crime</title>
+<link rel="stylesheet" href="./styles/hud.css"/>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+</head><body>
+<canvas id="game-canvas"></canvas>
+<div id="hud-root" class="hidden">
+  <div id="hud-mission-panel"></div>
+  <div id="hud-wanted-panel"></div>
+  <div id="tactical-crosshair" class="hidden"><span></span></div>
+  <div id="interact-prompt" class="hidden"></div>
+  <div id="radio-banner" class="hidden"></div>
+  <div id="story-comms-panel" class="hidden"></div>
+  <div id="hud-minimap-box"><canvas id="tactical-minimap" width="236" height="156"></canvas><div id="hud-vitals-grid"></div></div>
+  <div id="hud-speedo-panel"></div>
+</div>
+<div id="command-hub-overlay" class="hidden"></div>
+<div id="title-screen"></div>
+<div id="toast-banner"></div>
+<script type="module" src="./src/main.js"></script>
+</body></html>
